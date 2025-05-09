@@ -1,0 +1,36 @@
+trigger:
+  branches:
+    include:
+      - main
+
+stages:
+- stage: Build
+  jobs:
+  - job: BuildDockerImage
+    pool:
+      vmImage: "ubuntu-latest"
+    steps:
+    - task: Docker@2
+      inputs:
+        containerRegistry: "your-acr-service-connection"
+        repository: "sample-app"
+        command: "buildAndPush"
+        Dockerfile: "microservices/Dockerfile"
+        tags: "latest"
+
+- stage: Deploy
+  dependsOn: Build
+  jobs:
+  - job: DeployHelmChart
+    pool:
+      vmImage: "ubuntu-latest"
+    steps:
+    - task: HelmInstaller@1
+      inputs:
+        helmVersionToInstall: "latest"
+    - script: |
+        helm upgrade --install sample-app ./helm-chart \
+          --namespace default \
+          --set image.repository=<your-acr>.azurecr.io/sample-app \
+          --set image.tag=latest
+      displayName: "Deploy with Helm"
